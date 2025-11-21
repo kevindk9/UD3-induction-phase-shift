@@ -60,11 +60,15 @@ void PotentiometerTask(void *pvParameters) {
 
         // Hysteretic state machine
         if (!qcwState && ema >= ON_TH) {
-            qcw_start();
+            qcw_start_continuous(ema);
             qcwState = 1;
         } else if (qcwState && ema < OFF_TH) {
             qcw_stop();
             qcwState = 0;
+        }
+
+        if (qcwState) {
+            qcw_update_continuous_value(ema);
         }
 
         // Visualize the pedal/OCD level (8-bit)

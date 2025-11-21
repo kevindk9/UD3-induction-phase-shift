@@ -51,10 +51,12 @@ typedef struct
 timer_params timer;
 
 void qcw_start();
+void qcw_start_continuous(uint16_t val);
 void qcw_modulate(uint16_t val);
 void qcw_stop();
 void qcw_regenerate_ramp();
-void qcw_handle();   
+void qcw_update_continuous_value(uint16_t val);
+void qcw_handle();
 void qcw_handle_synth();
 
 void qcw_ramp_visualize(CHART *chart, TERMINAL_HANDLE * handle);

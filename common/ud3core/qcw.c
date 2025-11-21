@@ -24,6 +24,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "qcw.h"
 #include "interrupter.h"
 #include "hardware.h"
@@ -35,8 +36,15 @@
 #include "tasks/tsk_midi.h"
 
 TimerHandle_t xQCW_Timer;
+static volatile uint16_t qcw_live_val;
+static volatile bool qcw_continuous_mode;
 
 void qcw_handle(){
+    if(qcw_continuous_mode){
+        qcw_modulate(qcw_live_val);
+        return;
+    }
+
     if(SG_Timer_ReadCounter() < timer.time_stop){
         qcw_modulate(0);
         qcw_reg = 0;
@@ -127,12 +135,34 @@ void qcw_start(){
 
     timer.time_stop = timer.time_start - cycles_to_stop_limited;
     ramp.index=0;
-	//the next stuff is time sensitive, so disable interrupts to avoid glitches
-	CyGlobalIntDisable;
-	//now enable the QCW interrupter
-	QCW_enable_Control = 1;
-	params.pwmb_psb_val = (params.pwm_top / 2);
-    CyGlobalIntEnable;     
+        //the next stuff is time sensitive, so disable interrupts to avoid glitches
+        CyGlobalIntDisable;
+        //now enable the QCW interrupter
+        QCW_enable_Control = 1;
+        params.pwmb_psb_val = (params.pwm_top / 2);
+    CyGlobalIntEnable;
+}
+
+void qcw_start_continuous(uint16_t val){
+    if(val > 0xFF){
+        val = 0xFF;
+    }
+    qcw_live_val = val;
+    qcw_continuous_mode = true;
+
+    CyGlobalIntDisable;
+    QCW_enable_Control = 1;
+    params.pwmb_psb_val = (params.pwm_top / 2);
+    CyGlobalIntEnable;
+
+    qcw_reg = 1;
+}
+
+void qcw_update_continuous_value(uint16_t val){
+    if(val > 0xFF){
+        val = 0xFF;
+    }
+    qcw_live_val = val;
 }
 
 void qcw_modulate(uint16_t val){
@@ -153,10 +183,11 @@ void qcw_modulate(uint16_t val){
 
 void qcw_stop(){
     qcw_reg = 0;
-#if USE_DEBUG_DAC 
+#if USE_DEBUG_DAC
     DEBUG_DAC_SetValue(0);
 #endif
     QCW_enable_Control = 0;
+    qcw_continuous_mode = false;
 }
 
 uint8_t callback_rampFunction(parameter_entry * params, uint8_t index, TERMINAL_HANDLE * handle){
